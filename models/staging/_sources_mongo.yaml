@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: raw_mongo
+    database: ib-grupa1-187202-187419-189625
+    schema: raw_mongo_eu
+    tables:
+      - name: raw_pracownicy
