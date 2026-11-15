@@ -20,10 +20,9 @@ from google.cloud import bigquery
 NEON_CONNECTION_STRING = os.environ["NEON_CONNECTION_STRING"]
 BQ_PROJECT_ID = os.environ["BQ_PROJECT_ID"]
 BQ_DATASET = os.environ["BQ_DATASET"]
-BQ_TABLE = os.environ["BQ_TABLE"]
  
 # TODO: nazwa tabeli źródłowej w Neon (ta, którą wypełnialiście w Lab 1)
-SOURCE_TABLE = "cars"
+TABLES_TO_LOAD = ["cars", "employees", "customers", "models", "transactions", "test_drive"]
  
 # TODO: kolumna używana do wykrywania nowych/zmienionych wierszy przy incremental load
 INCREMENTAL_COLUMN = "updated_at"
@@ -54,28 +53,27 @@ def get_last_loaded_timestamp(bq_client: bigquery.Client, table_ref: str):
         return None
  
  
-def extract_from_neon(mode: str, last_ts=None) -> pd.DataFrame:
+def extract_from_neon(source_table: str, mode: str, last_ts=None) -> pd.DataFrame:
     """Łączy się z bazą Neon i wyciąga dane z tabeli źródłowej."""
     conn = psycopg2.connect(NEON_CONNECTION_STRING)
     try:
         if mode == "incremental" and last_ts is not None:
-            query = f"SELECT * FROM {SOURCE_TABLE} WHERE {INCREMENTAL_COLUMN} > %s"
+            query = f"SELECT * FROM {source_table} WHERE {INCREMENTAL_COLUMN} > %s"
             df = pd.read_sql(query, conn, params=(last_ts,))
         else:
-            query = f"SELECT * FROM {SOURCE_TABLE}"
+            query = f"SELECT * FROM {source_table}"
             df = pd.read_sql(query, conn)
     finally:
         conn.close()
     return df
  
  
-def load_to_bigquery(df: pd.DataFrame, table_ref: str, mode: str):
+def load_to_bigquery(bq_client: bigquery.Client, df: pd.DataFrame, table_ref: str, mode: str):
     """Ładuje DataFrame do BigQuery.
  
     full_refresh -> WRITE_TRUNCATE (nadpisuje całą tabelę)
     incremental  -> WRITE_APPEND   (dopisuje nowe wiersze)
     """
-    bq_client = bigquery.Client()
     write_disposition = (
         bigquery.WriteDisposition.WRITE_TRUNCATE
         if mode == "full_refresh"
@@ -88,23 +86,24 @@ def load_to_bigquery(df: pd.DataFrame, table_ref: str, mode: str):
  
  
 def main():
-    table_ref = f"{BQ_PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE}"
     bq_client = bigquery.Client()
- 
-    last_ts = None
-    if LOAD_MODE == "incremental":
-        last_ts = get_last_loaded_timestamp(bq_client, table_ref)
-        print(f"Ostatni załadowany timestamp w BigQuery: {last_ts}")
- 
-    df = extract_from_neon(LOAD_MODE, last_ts)
-    print(f"Wyciągnięto {len(df)} wierszy z Neon (tabela źródłowa: {SOURCE_TABLE})")
- 
-    if df.empty:
-        print("Brak nowych danych do załadowania -- kończę.")
-        return
- 
-    job = load_to_bigquery(df, table_ref, LOAD_MODE)
-    print(f"Załadowano {job.output_rows} wierszy do {table_ref} (tryb: {LOAD_MODE})")
+    for table_name in TABLES_TO_LOAD:
+        table_ref = f"{BQ_PROJECT_ID}.{BQ_DATASET}.{table_name}"
+
+        last_ts = None
+        if LOAD_MODE == "incremental":
+            last_ts = get_last_loaded_timestamp(bq_client, table_ref)
+            print(f"Ostatni załadowany timestamp w BigQuery: {last_ts}")
+
+        df = extract_from_neon(table_name, LOAD_MODE, last_ts)
+        print(f"Wyciągnięto {len(df)} wierszy z Neon (tabela źródłowa: {table_name})")
+
+        if df.empty:
+            print("Brak nowych danych do załadowania -- pomijam.")
+            continue
+
+        job = load_to_bigquery(bq_client, df, table_ref, LOAD_MODE)
+        print(f"Załadowano {job.output_rows} wierszy do {table_ref} (tryb: {LOAD_MODE})")
  
  
 if __name__ == "__main__":
