@@ -32,7 +32,6 @@ jobs:
           # --- TODO: studenci uzupełniają poniższe trzy wartości ---
           BQ_PROJECT_ID: ib-grupa1-187202-187419-189625
           BQ_DATASET: inzynieria_danych
-          BQ_TABLE: cars
         run: python extract_load.py
 
       - name: Clean up key file
