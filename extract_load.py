@@ -22,7 +22,7 @@ BQ_PROJECT_ID = os.environ["BQ_PROJECT_ID"]
 BQ_DATASET = os.environ["BQ_DATASET"]
  
 # TODO: nazwa tabeli źródłowej w Neon (ta, którą wypełnialiście w Lab 1)
-TABLES_TO_LOAD = ["cars", "employees", "customers", "models", "transactions", "test_drive"]
+TABLES_TO_LOAD = ["models", "customers", "employees", "cars", "transactions", "test_drive"]
  
 # TODO: kolumna używana do wykrywania nowych/zmienionych wierszy przy incremental load
 INCREMENTAL_COLUMN = "updated_at"
