@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: raw_parquet
+    database: ib-grupa1-187202-187419-189625
+    schema: raw_parquet
+    tables:
+      - name: raw_transakcje
